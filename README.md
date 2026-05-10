@@ -1,4 +1,54 @@
-# gstack
+# gstack (Lkhanaajav fork)
+
+> **Fork note:** This is a fork of [garrytan/gstack](https://github.com/garrytan/gstack) with one meaningful change: a **full/medium/low mode system** that reduces preamble token usage by up to ~80%. See [Fork Changes](#fork-changes) below.
+
+---
+
+## Fork Changes
+
+### Mode system — reduce token usage per skill invocation
+
+Every gstack skill runs a preamble bash block on each invocation. In the original, this block always runs ~50 lines including update checks, onboarding prompts, telemetry setup, learnings loading, and routing checks. Most of these are one-time-setup steps that fire on every run anyway — wasting tokens you've already paid for.
+
+This fork adds a `mode` config that gates which steps actually run:
+
+| Mode | What runs | Estimated token cost vs full |
+|------|-----------|-------------------------------|
+| `full` | Every check — update, onboarding prompts, learnings, routing setup, contributor | ~100% |
+| `medium` | Update check, proactive/repo detection, telemetry logging — skips all onboarding prompts | ~40% |
+| `low` | Session tracking + branch detection only | ~10% |
+
+**Default is `medium`** — you get the functional checks without re-running first-time setup on every skill call.
+
+#### How to set your mode
+
+```bash
+# Set once, persists across all skill invocations
+~/.claude/skills/gstack/bin/gstack-config set mode medium   # default
+~/.claude/skills/gstack/bin/gstack-config set mode low      # minimal
+~/.claude/skills/gstack/bin/gstack-config set mode full     # original behavior
+```
+
+To temporarily override for one run:
+```bash
+~/.claude/skills/gstack/bin/gstack-config set mode low
+# run your skill
+~/.claude/skills/gstack/bin/gstack-config set mode medium   # reset
+```
+
+#### Skills updated
+
+Mode-aware preambles have been applied to: `gstack` (browse), `qa`, `investigate`, `ship`, `review`.
+
+#### What I liked about gstack
+
+The "Boil the Lake" philosophy — always do the complete thing when AI makes the marginal cost near-zero. The `/investigate` four-phase debugging loop (investigate → analyze → hypothesize → implement) is the most useful single skill I've used. The persistent headless browser for QA is genuinely impressive.
+
+#### Why I made this change
+
+Each skill invocation was loading onboarding prompts (lake intro, telemetry, proactive, routing rules) even after I'd already answered them. In a heavy workflow with `/qa` → `/review` → `/ship`, that's three redundant preamble runs burning tokens on checks that were already done. Medium mode cuts that overhead significantly while keeping the update check and functional config reads that actually matter during a session.
+
+---
 
 > "I don't think I've typed like a line of code probably since December, basically, which is an extremely large change." — [Andrej Karpathy](https://fortune.com/2026/03/21/andrej-karpathy-openai-cofounder-ai-agents-coding-state-of-psychosis-openclaw/), No Priors podcast, March 2026
 
